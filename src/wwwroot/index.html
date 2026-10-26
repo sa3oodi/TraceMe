@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TraceMe</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M5 21l6-8 5 5 5-9 6 7' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><path d="M5 21l6-8 5 5 5-9 6 7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>TraceMe</a>
+  <nav id="nav">
+    <a href="#/" data-nav="summary">Summary</a>
+    <a href="#/apps" data-nav="apps">Apps</a>
+    <a href="#/events" data-nav="events">Events <span class="count" id="evCount" hidden></span></a>
+    <a href="#/alerts" data-nav="alerts">Alerts</a>
+    <a href="#/settings" data-nav="settings">Settings</a>
+  </nav>
+  <span class="spacer"></span>
+  <span id="adminBadge" class="badge" title=""></span>
+  <button class="icon" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+</header>
+<div id="banners"></div>
+<main id="view" class="container"></main>
+<div id="toasts" aria-live="polite"></div>
+<dialog id="dlg"></dialog>
+<div id="menu" class="menu" hidden></div>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# build output
+bin/
+obj/
+dist/
+artifacts/
+*.user
+.vs/
+.idea/
+# local data and test leftovers
+*.db
+*.db-wal
+*.db-shm
+TestResults/
+node_modules/
+
+# private working notes (not published)
+docs/PINGPLOTTER-RE-FINDINGS.md
