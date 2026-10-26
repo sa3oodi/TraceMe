@@ -23,7 +23,8 @@ const BASE_COLS = [
   { k: 'band', label: 'Min – Max  (│ avg)' },
   { k: 'spark', label: 'Recent' },
 ];
-const DEFAULT_COLS = ['hop', 'host', 'sent', 'avg', 'min', 'max', 'last', 'jitter', 'loss', 'band', 'spark'];
+const colClass = c => String(c.k).replace(/[^\w-]/g, '_');
+const DEFAULT_COLS =['hop', 'host', 'sent', 'avg', 'min', 'max', 'last', 'jitter', 'loss', 'band', 'spark'];
 
 export function mount(root, id) {
   let snap = null, selHop = null, es = null, dead = false;
@@ -181,9 +182,11 @@ export function mount(root, id) {
       $('#emptyClr', root).onclick = () => onSelectRange(null);
       return;
     }
-    const head = `<thead><tr>${vc.map(c => `<th class="${c.cls || ''}">${esc(c.label)}</th>`).join('')}<th></th></tr></thead>`;
+    const head = `<thead><tr>${vc.map(c => `<th class="${c.cls || ''} k-${colClass(c)}">${esc(c.label)}</th>`).join('')}<th></th></tr></thead>`;
     const body = rows.map(h => `<tr data-hop="${h.hop}" tabindex="0" class="${h.hop === selHop ? 'sel' : ''} ${h.address ? '' : 'noresp'}">${vc.map(c => cell(h, c, ctx)).join('')}<td><button class="ghost sm rowmenu" data-menu="${h.hop}" aria-label="Hop ${h.hop} actions">⋯</button></td></tr>`).join('');
     $('#tbl', root).innerHTML = `<table>${head}<tbody>${body || `<tr><td colspan="${vc.length + 1}" class="empty">Waiting for the first trace to complete…</td></tr>`}</tbody></table>`;
+    // Column classes let the stylesheet drop the less important columns on a phone.
+    $$('#tbl tbody tr[data-hop]', root).forEach(tr => vc.forEach((c, i) => tr.children[i]?.classList.add('k-' + colClass(c))));
     const sparkMax = Math.max(10, ...(snap?.hops || []).flatMap(h => h.series.filter(v => v != null))) * 1.1;
     $$('canvas[data-spark]', root).forEach(c => { const h = liveByHop.get(+c.dataset.spark); if (h) drawSpark(c, h.series.slice(-60), { max: sparkMax }); });
   }

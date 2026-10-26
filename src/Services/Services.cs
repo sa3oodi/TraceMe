@@ -32,7 +32,10 @@ public static class Elevation
     }
 
     /// <summary>Starts a new elevated copy of this process (UAC prompt). The copy waits for this process to exit before binding the port.</summary>
-    public static void RelaunchElevated()
+    public static void RelaunchElevated() => Relaunch(elevate: true);
+
+    /// <summary>Starts a new copy of this process with the same arguments (elevated through UAC, or with the current rights).</summary>
+    public static void Relaunch(bool elevate)
     {
         var exe = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot determine process path.");
         var args = Environment.GetCommandLineArgs().Skip(1).Where(a => !a.StartsWith("--wait-pid") && a != "--open").ToList();
@@ -43,7 +46,7 @@ public static class Elevation
         parts.Add("--wait-pid=" + Environment.ProcessId);
         Process.Start(new ProcessStartInfo(exe, string.Join(' ', parts))
         {
-            UseShellExecute = true, Verb = "runas", WorkingDirectory = Directory.GetCurrentDirectory()
+            UseShellExecute = true, Verb = elevate ? "runas" : "", WorkingDirectory = Directory.GetCurrentDirectory()
         });
     }
 

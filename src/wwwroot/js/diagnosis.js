@@ -11,6 +11,7 @@ const SIDE = {
 /** Headline icon, colour class and title for a diagnosis result. */
 export function headline(d) {
   if (!d || d.code === 'insufficient') return ['…', '', 'Collecting data…'];
+  if (d.code === 'burst') return ['⚠', 'warn', 'A short loss burst — clean now'];
   if (d.code === 'no_response') return ['⚠', 'warn', 'Nothing is answering'];
   if (d.code === 'latency') return ['⚠', d.status === 'bad' ? 'bad' : 'warn', 'Latency is high'];
   const [icon, cls, title] = SIDE[d.side] || ['…', '', 'Checking…'];

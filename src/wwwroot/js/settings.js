@@ -2,12 +2,13 @@ import { get, post, put } from './api.js';
 import { $, $$, esc, store, toast, download, lsGet, lsSet, applyTheme } from './util.js';
 import { setSoundEnabled } from './sound.js';
 import { elevate } from './forms.js';
+import { mountRemote } from './remote.js';
 
 const MASK = '••••••';
 
 function colBlock(c) {
   return `<fieldset data-col="${esc(c.id)}"><legend>${esc(c.name)}</legend>
-    <div class="fgrid" style="grid-template-columns:2fr 1fr auto auto;align-items:end">
+    <div class="fgrid colgrid">
       <label class="f">Column name<input data-f="name" value="${esc(c.name)}" maxlength="30"></label>
       <label class="f">Decimals<input data-f="decimals" type="number" min="0" max="6" value="${c.decimals}"></label>
       <label class="ck"><input type="checkbox" data-f="visible" ${c.visible !== false ? 'checked' : ''}> Show</label>
@@ -73,13 +74,15 @@ export function mount(root) {
         <div class="row"><input id="mailTo" placeholder="send a test to…" style="width:240px"><button type="button" id="mailTest">Send test email</button></div>
       </div></section>
 
+      <section class="panel"><div class="hd"><h3>Remote access — view TraceMe on your phone</h3></div><div class="bd col" id="remote"><div class="mute">Loading…</div></div></section>
+
       <section class="panel"><div class="hd"><h3>Security &amp; integrations</h3></div><div class="bd col">
         <label class="ck"><input type="checkbox" name="asnLookup" ${s.asnLookup ? 'checked' : ''}> Look up the AS owner of each hop automatically (sends hop IP addresses to Team Cymru's whois service)</label>
         <label class="ck"><input type="checkbox" name="allowExec" ${s.allowExec ? 'checked' : ''}> Allow alert actions to run programs on this computer</label>
         <fieldset><legend>Remote agent</legend>
           <div class="fgrid" style="grid-template-columns:2fr auto;align-items:end"><label class="f">Agent token (leave empty to disable agent mode on this instance)<input name="agentToken" type="password" value="${esc(s.agentToken ?? '')}" autocomplete="off"></label>
           <button type="button" id="genTok">Generate</button></div>
-          <div class="mute" style="margin-top:6px">With a token set, other TraceMe instances can run traces from this machine (add this machine's URL and token to a target's “Remote agent” settings). To reach it from another computer start TraceMe with <span class="mono">TRACEME_URL=http://0.0.0.0:5055</span>; a browser access token is then required (<span class="mono">TRACEME_TOKEN</span>).</div>
+          <div class="mute" style="margin-top:6px">With a token set, other TraceMe instances can run traces from this machine (add this machine's URL and token to a target's “Remote agent” settings). To open the web page from your phone use “Remote access” above.</div>
         </fieldset>
       </div></section>
 
@@ -108,6 +111,7 @@ export function mount(root) {
       lsSet('notify', e.target.checked);
     };
     $('#elev', root)?.addEventListener('click', elevate);
+    mountRemote($('#remote', root));
     $('#genTok', root).onclick = () => { const b = crypto.getRandomValues(new Uint8Array(18)); f.agentToken.type = 'text'; f.agentToken.value = [...b].map(x => x.toString(16).padStart(2, '0')).join(''); };
 
     // columns

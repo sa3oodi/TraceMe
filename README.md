@@ -29,6 +29,8 @@ replies also make a traceroute look worse than it is. TraceMe automates all of i
   or running a program (off by default).
 - **Keep and export history:** SQLite storage, CSV export, timeline image, route history, comments on the timeline.
 - **Customise:** your own columns written in JavaScript (sandboxed), light and dark themes, workspace export/import.
+- **Watch it from your phone:** Settings → **Remote access** turns on access from your local network and shows a QR code. Scan it
+  and your phone opens TraceMe, already signed in. See [Remote access](#remote-access-phone).
 - **Trace from another machine:** run a second TraceMe as a remote agent and view its results locally.
 
 ![TraceMe Apps](docs/screenshot-apps.png)
@@ -73,6 +75,22 @@ is limited.
 | **UDP** | Datagrams to a configurable port (default 33434) with increasing TTL. Routers answer with ICMP *Time Exceeded*, the target with *Port Unreachable* or a UDP reply. | To read **router addresses** |
 | **TCP** | SYN probes to a port (default 80) with increasing TTL; gets through firewalls that drop ICMP and UDP. | To read **router addresses** |
 
+## Remote access (phone)
+
+By default TraceMe only answers on the PC it runs on. To watch a trace from your phone or another computer on the same Wi-Fi:
+
+1. On the PC open **Settings → Remote access → Turn on remote access** and confirm. TraceMe restarts once and, when it runs as
+   administrator, opens the Windows Firewall for **private networks** on its port.
+2. On the phone, scan the QR code with the camera. The phone opens TraceMe and signs in (the access token travels in the part of the
+   address after `#`, which browsers never send to a server, and is removed from the address bar). Or type the address shown and
+   enter the token.
+3. **Turn off remote access** in the same place whenever you like. **New token** signs every other device out.
+
+The connection is plain HTTP protected by a random 144-bit access token, so use it only on a network you trust, and never forward the
+port on your router. Away from home, use a VPN such as Tailscale or WireGuard. If the phone cannot connect, check that it is on the same
+Wi-Fi, that Windows calls the network *Private*, and that your router does not isolate Wi-Fi clients ("guest network" mode).
+Advanced: starting TraceMe with `--url=http://0.0.0.0:5055 --token=...` does the same without the Settings page.
+
 ## Good to know (limits)
 
 - A trace measures the **path**, not your game's own connection. Servers and routers often ignore or rate-limit probes, so a hop with
@@ -87,7 +105,7 @@ is limited.
 
 - Listens on **127.0.0.1 only** by default; requests need a loopback `Host` header (DNS-rebinding defence) and writes need the
   `X-TraceMe` header and a same-origin `Origin` (CSRF defence).
-- To listen on other addresses set `TRACEME_URL=http://0.0.0.0:5055`; an access token is then required.
+- Remote access (Settings) or `TRACEME_URL=http://0.0.0.0:5055` makes it listen on the network; an access token is then required.
 - Alert actions that run programs are **off** by default, cannot be enabled by an imported file, and take arguments without a shell.
   Scripts run in a sandbox without file, network or process access.
 - Passwords and tokens are masked in the UI and API and left out of exports. They are stored unencrypted in your local database.

@@ -26,8 +26,16 @@ public sealed class DiagnosisService
             string? asn = addr == null ? null : _hub.Asn.TryGet(addr, false)?.Asn;
             return new HopInput(h.Hop, addr, name, s?.Sent ?? 0, s?.Recv ?? 0, s?.LossPct ?? 0, s?.Avg, s?.Jitter, s?.Max, asn);
         }).ToList();
-        var o = new DiagnosisOptions { LossWarn = gs.LossWarnPct, LossBad = gs.LossCritPct, LatencyWarn = gs.LatencyWarnMs, LatencyBad = gs.LatencyCritMs };
-        return Diagnosis.Analyze(list, r.DestHop != null, o);
+        // the last stretch of the window (about 12 traces, at least 30 s) tells whether a problem is still going on
+        int recentSec = Math.Clamp((int)(r.Config.IntervalMs * 12L / 1000), 30, 120);
+        var o = new DiagnosisOptions { LossWarn = gs.LossWarnPct, LossBad = gs.LossCritPct, LatencyWarn = gs.LatencyWarnMs, LatencyBad = gs.LatencyCritMs, RecentSec = recentSec };
+        List<HopInput>? recent = null;
+        if (to - from >= recentSec * 2000L)
+        {
+            var rs = _hub.Db.WindowStats(r.Id, hops.Select(h => h.Hop), to - recentSec * 1000L, to);
+            recent = list.Select(h => { rs.TryGetValue(h.Hop, out var s); return h with { Sent = s?.Sent ?? 0, Recv = s?.Recv ?? 0, LossPct = s?.LossPct ?? 0 }; }).ToList();
+        }
+        return Diagnosis.Analyze(list, r.DestHop != null, o, recent);
     }
 
     /// <summary>Diagnosis over the last <paramref name="windowSec"/> seconds (or since the session restarted), cached for a few seconds.</summary>
@@ -406,7 +414,7 @@ public sealed class AppMonitor : IDisposable
             }
         }
         var sm = s.Summary;
-        bool bad = sm is { Code: not ("ok" or "no_data" or "insufficient") };
+        bool bad = sm is { Code: not ("ok" or "burst" or "no_data" or "insufficient") };
         _hub.Bus.Publish(null, "info", bad ? "warn" : "info",
             $"{s.Name}: session ended ({reason}). {(sm == null || string.IsNullOrEmpty(sm.Headline) ? "Not enough data for a verdict." : sm.Headline)}", toast: true);
     }

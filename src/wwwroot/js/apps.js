@@ -24,7 +24,7 @@ function mountList(root) {
   let f = lsGet('appsFilter', { q: '', games: false, all: false });
 
   root.innerHTML = `
-    <div class="row" style="margin-bottom:12px">
+    <div class="row pagehead" style="margin-bottom:12px">
       <div class="grow"><h2>Apps</h2><div class="mute">See which servers an application talks to, trace them automatically and find out whether a problem is on your side.</div></div>
       <input id="q" type="search" placeholder="Filter apps…" style="width:180px" aria-label="Filter apps" value="${esc(f.q)}">
       <label class="ck"><input type="checkbox" id="fg" ${f.games ? 'checked' : ''}> Games only</label>
@@ -60,7 +60,7 @@ function mountList(root) {
       loadGames();
       return;
     }
-    setHtml(body, `<div class="panel flush"><table><thead><tr><th class="l">Application</th><th class="l">Status</th><th>Traffic</th><th class="l">Servers</th><th class="l">Auto-trace</th><th class="l">Verdict</th><th></th></tr></thead><tbody>${apps.map(row).join('')}</tbody></table></div>`);
+    setHtml(body, `<div class="panel flush"><table><thead><tr><th class="l">Application</th><th class="l hm">Status</th><th class="hm">Traffic</th><th class="l hm">Servers</th><th class="l">Auto-trace</th><th class="l hm">Verdict</th><th class="hm"></th></tr></thead><tbody>${apps.map(row).join('')}</tbody></table></div>`);
   }
 
   function popular() { return (games.length ? games : [{ exe: 'cod.exe', name: 'Call of Duty' }, { exe: 'fortniteclient-win64-shipping.exe', name: 'Fortnite' }, { exe: 'valorant-win64-shipping.exe', name: 'VALORANT' }, { exe: 'cs2.exe', name: 'Counter-Strike 2' }, { exe: 'r5apex.exe', name: 'Apex Legends' }, { exe: 'dota2.exe', name: 'Dota 2' }]).slice(0, 8); }
@@ -69,13 +69,13 @@ function mountList(root) {
   function row(a) {
     const v = a.verdict;
     return `<tr data-key="${esc(a.key)}" tabindex="0">
-      <td class="l"><div class="appcell">${appIcon(a.key, a.friendly || a.name)}<div><b>${esc(a.friendly || a.name)}</b> ${a.friendly ? `<span class="mute mono">${esc(a.name)}</span>` : ''} ${a.isGame ? '<span class="chip game">GAME</span>' : ''}</div></div></td>
-      <td class="l">${a.running ? '<span class="dot good"></span> running' : '<span class="mute">not running</span>'}${a.session ? ' · <span class="chip warn">session live</span>' : ''}</td>
-      <td class="nowrap">↓ ${rate(a.bpsIn)}<br><span class="mute">↑ ${rate(a.bpsOut)}</span></td>
-      <td class="l">${a.publicEndpoints} public${a.gameEndpoints ? ` · <b>${a.gameEndpoints} likely game server${a.gameEndpoints > 1 ? 's' : ''}</b>` : ''}${a.tracedServers ? `<div class="mute">${a.tracedServers} traced</div>` : ''}</td>
+      <td class="l"><div class="appcell">${appIcon(a.key, a.friendly || a.name)}<div><b>${esc(a.friendly || a.name)}</b> ${a.friendly ? `<span class="mute mono">${esc(a.name)}</span>` : ''} ${a.isGame ? '<span class="chip game">GAME</span>' : ''}<div class="mob mute">${a.running ? '<span class="dot good"></span> running' : 'not running'}${a.session ? ' · session live' : ''} · ↓ ${rate(a.bpsIn)} ↑ ${rate(a.bpsOut)}<br>${a.publicEndpoints} public${a.gameEndpoints ? ` · <b>${a.gameEndpoints} likely game server${a.gameEndpoints > 1 ? 's' : ''}</b>` : ''}${a.tracedServers ? ` · ${a.tracedServers} traced` : ''}</div>${v ? `<div class="mob">${sideChip(v)} <span class="mute">${esc(v.headline)}</span></div>` : ''}</div></div></td>
+      <td class="l hm">${a.running ? '<span class="dot good"></span> running' : '<span class="mute">not running</span>'}${a.session ? ' · <span class="chip warn">session live</span>' : ''}</td>
+      <td class="nowrap hm">↓ ${rate(a.bpsIn)}<br><span class="mute">↑ ${rate(a.bpsOut)}</span></td>
+      <td class="l hm">${a.publicEndpoints} public${a.gameEndpoints ? ` · <b>${a.gameEndpoints} likely game server${a.gameEndpoints > 1 ? 's' : ''}</b>` : ''}${a.tracedServers ? `<div class="mute">${a.tracedServers} traced</div>` : ''}</td>
       <td class="l"><label class="switch" title="Trace this app's servers automatically whenever it runs"><input type="checkbox" data-watch ${a.rule?.enabled ? 'checked' : ''}> ${a.rule?.enabled ? 'On' : 'Off'}</label></td>
-      <td class="l">${v ? `${sideChip(v)}<div class="mute" style="font-size:12px;max-width:340px;white-space:normal">${esc(v.headline)}</div>` : '<span class="mute">–</span>'}</td>
-      <td><a href="#/apps/${encodeURIComponent(a.key)}">Open →</a></td></tr>`;
+      <td class="l hm">${v ? `${sideChip(v)}<div class="mute" style="font-size:12px;max-width:340px;white-space:normal">${esc(v.headline)}</div>` : '<span class="mute">–</span>'}</td>
+      <td class="hm"><a href="#/apps/${encodeURIComponent(a.key)}">Open →</a></td></tr>`;
   }
 
   root.addEventListener('click', async e => {

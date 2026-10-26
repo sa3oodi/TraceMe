@@ -10,6 +10,8 @@ public sealed class DiagnosisOptions
 {
     public double LossWarn = 1, LossBad = 5, JitterWarn = 10, LatencyWarn = 100, LatencyBad = 250;
     public int MinSamples = 20;
+    /// <summary>Length of the recent window (seconds) that is passed to <see cref="Diagnosis.Analyze"/> as <c>recent</c>.</summary>
+    public int RecentSec = 30;
 }
 
 public sealed class DiagSegment
@@ -28,7 +30,7 @@ public sealed class DiagSegment
 
 public sealed class DiagnosisResult
 {
-    /// <summary>ok | local | isp | transit | server | latency | insufficient | no_response</summary>
+    /// <summary>ok | burst | local | isp | transit | server | latency | insufficient | no_response</summary>
     public string Code { get; set; } = "insufficient";
     /// <summary>none | yours | isp | internet | server | unknown</summary>
     public string Side { get; set; } = "unknown";
@@ -62,7 +64,7 @@ public static class Diagnosis
 
     static string Label(HopInput h) => h.Address == null ? $"hop {h.Hop}" : $"hop {h.Hop} ({(string.IsNullOrEmpty(h.Name) ? h.Address : h.Name)})";
 
-    public static DiagnosisResult Analyze(IReadOnlyList<HopInput> all, bool destReached, DiagnosisOptions? opt = null)
+    public static DiagnosisResult Analyze(IReadOnlyList<HopInput> all, bool destReached, DiagnosisOptions? opt = null, IReadOnlyList<HopInput>? recent = null)
     {
         var o = opt ?? new DiagnosisOptions();
         var r = new DiagnosisResult { DestinationAnswers = destReached };
@@ -138,6 +140,7 @@ public static class Diagnosis
             };
             r.Advice.AddRange(AdviceFor(r.Code, lossStart));
             r.Confidence = r.Samples >= 100 && dest.LossPct >= o.LossWarn * 2 ? "high" : r.Samples >= 50 ? "medium" : "low";
+            ApplyRecency(r, segs, lossStart, eff, dest, destReached, recent, o);
         }
 
         // ---- jitter
@@ -206,6 +209,56 @@ public static class Diagnosis
 
         r.Segments = segs;
         return r;
+    }
+
+    /// <summary>
+    /// A loss figure averaged over minutes says nothing about <i>when</i> the loss happened. Look at the most recent seconds: loss that
+    /// has already stopped is a burst (not a standing fault), loss that only just began is not yet proven, and a small number of lost
+    /// probes is weak evidence either way. Also say when the destination itself never answers, because then the loss cannot be
+    /// confirmed to affect real traffic.
+    /// </summary>
+    static void ApplyRecency(DiagnosisResult r, List<DiagSegment> segs, HopInput lossStart, List<HopInput> eff, HopInput dest, bool destReached,
+        IReadOnlyList<HopInput>? recent, DiagnosisOptions o)
+    {
+        int lostN = (int)Math.Round(lossStart.Sent * lossStart.LossPct / 100.0);
+        var rh = recent?.FirstOrDefault(x => x.Hop == lossStart.Hop);
+        bool haveRecent = rh != null && rh.Sent >= 8;
+        bool ended = haveRecent && rh!.LossPct < o.LossWarn;
+        string Cap(string c, string max) => (c, max) switch { ("high", _) => max, ("medium", "low") => "low", _ => c };
+
+        if (lostN < 20) { r.Confidence = "low"; r.Evidence.Add($"Only {lostN} probe{(lostN == 1 ? " was" : "s were")} lost, which is weak evidence on its own."); }
+
+        if (ended && lostN < 20)
+        {
+            // a short burst that is over: not a standing fault
+            var seg = segs.FirstOrDefault(s => s.Culprit);
+            if (seg != null) { seg.Culprit = false; seg.Status = "warn"; }
+            r.Code = "burst"; r.Side = "none"; r.Status = "warn"; r.Confidence = "low";
+            r.Headline = $"A short burst of packet loss started at {Label(lossStart)}, but the last {o.RecentSec} seconds are clean — nothing is wrong right now.";
+            r.Evidence[0] = $"{Fmt(lossStart.LossPct)}% of probes were lost from {Label(lossStart)} onward ({lostN} probes), then it stopped.";
+            r.Advice.Clear();
+            r.Advice.Add("Nothing to fix now. If the game stuttered at that moment, note the time; one-off bursts often come from Wi‑Fi, a busy modem or a background upload.");
+            r.Advice.Add("If it keeps happening at the same point (for example while the game loads), look at what else uses your upload at that time.");
+            r.Advice.Add("Compare with the game's own packet-loss figure: loss that only the probes see is not loss your game suffers.");
+            return;
+        }
+        if (ended)
+        {
+            r.Evidence.Add($"The last {o.RecentSec} seconds show no loss at {Label(lossStart)}, so the problem may have stopped.");
+            r.Confidence = Cap(r.Confidence, "medium");
+        }
+        else if (haveRecent && lostN >= 1)
+        {
+            int recentLost = (int)Math.Round(rh!.Sent * rh.LossPct / 100.0);
+            int earlierSent = lossStart.Sent - rh.Sent, earlierLost = lostN - recentLost;
+            if (earlierSent >= 15 && earlierLost * 100.0 / earlierSent < o.LossWarn)
+            {
+                r.Evidence.Add($"The loss only began within the last {o.RecentSec} seconds; wait to see whether it continues before acting on it.");
+                r.Confidence = "low";
+            }
+        }
+        if (!destReached && r.Code != "server")
+            r.Evidence.Add("The server itself never answers probes, so this cannot be confirmed to affect your game traffic. If the game reports no loss, treat it as probe-specific.");
     }
 
     static IEnumerable<string> AdviceFor(string code, HopInput h)

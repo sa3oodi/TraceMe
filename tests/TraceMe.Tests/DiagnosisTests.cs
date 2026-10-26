@@ -23,6 +23,64 @@ public class DiagnosisTests
         return l;
     }
 
+    // ---- when did the loss happen? (recent window)
+
+    [Fact]
+    public void ShortBurstThatHasEndedIsNotBlamedOnTheIsp()
+    {
+        // 100 traces, hops 6+ lost 15 of them, but the last 30 traces are clean
+        var d = Diagnosis.Analyze(Path(h => h >= 6 ? 15 : 0, sent: 100), true, null, Path(_ => 0, sent: 30));
+        Assert.Equal("burst", d.Code); Assert.Equal("none", d.Side); Assert.Equal("warn", d.Status); Assert.Equal("low", d.Confidence);
+        Assert.Equal(0, d.Segments.Count(s => s.Culprit));
+        Assert.Contains("nothing is wrong right now", d.Headline);
+        Assert.DoesNotContain(d.Advice, a => a.Contains("contact your ISP"));
+    }
+
+    [Fact]
+    public void LossThatIsStillGoingOnKeepsItsVerdict()
+    {
+        var d = Diagnosis.Analyze(Path(h => h >= 2 ? 30 : 0, sent: 100), true, null, Path(h => h >= 2 ? 30 : 0, sent: 30));
+        Assert.Equal("isp", d.Code); Assert.Equal("isp", d.Side); Assert.Equal("bad", d.Status);
+        Assert.Equal(1, d.Segments.Count(s => s.Culprit));
+        Assert.NotEqual("low", d.Confidence);
+    }
+
+    [Fact]
+    public void LossThatJustBeganIsMarkedUnproven()
+    {
+        // 24 probes lost, all of them inside the last 30 traces
+        var d = Diagnosis.Analyze(Path(h => h >= 6 ? 24 : 0, sent: 100), true, null, Path(h => h >= 6 ? 80 : 0, sent: 30));
+        Assert.Equal("isp", d.Code);
+        Assert.Equal("low", d.Confidence);
+        Assert.Contains(d.Evidence, e => e.Contains("only began within the last"));
+    }
+
+    [Fact]
+    public void LongLossThatStoppedKeepsTheVerdictButNotHighConfidence()
+    {
+        var d = Diagnosis.Analyze(Path(h => h >= 6 ? 40 : 0, sent: 200), true, null, Path(_ => 0, sent: 30));
+        Assert.Equal("isp", d.Code);
+        Assert.Contains(d.Evidence, e => e.Contains("may have stopped"));
+        Assert.NotEqual("high", d.Confidence);
+    }
+
+    [Fact]
+    public void SilentServerIsMentionedWhenBlamingSomeoneElse()
+    {
+        var hops = Path(h => h >= 6 && h <= 11 ? 30 : 0, sent: 100, count: 11);
+        hops.Add(new HopInput(12, null, null, 100, 0, 100, null, null, null, null));
+        var d = Diagnosis.Analyze(hops, false);
+        Assert.NotEqual("ok", d.Code);
+        Assert.Contains(d.Evidence, e => e.Contains("never answers probes"));
+    }
+
+    [Fact]
+    public void WithoutARecentWindowTheOldBehaviourIsKept()
+    {
+        var d = Diagnosis.Analyze(Path(h => h >= 6 ? 15 : 0, sent: 100), true);
+        Assert.Equal("isp", d.Code);
+    }
+
     [Fact]
     public void CleanPathIsHealthy()
     {

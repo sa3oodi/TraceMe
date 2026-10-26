@@ -27,11 +27,28 @@ bool loopbackOnly = urls.Split(';').All(u =>
 
 var token = Environment.GetEnvironmentVariable("TRACEME_TOKEN");
 if (string.IsNullOrWhiteSpace(token)) token = null;
+
+// Settings → Remote access: unless the listen address was given explicitly, a saved choice makes the server reachable from the LAN.
+var remote = new RemoteRuntime { Managed = loopbackOnly };
+remote.Port = Uri.TryCreate(urls.Split(';')[0].Replace("*", "127.0.0.1").Replace("+", "127.0.0.1"), UriKind.Absolute, out var firstUri) ? firstUri.Port : 5055;
+if (loopbackOnly)
+{
+    var saved = RemoteAccess.Load();
+    if (saved.Enabled && RemoteAccess.ValidToken(saved.Token))
+    {
+        urls = $"http://0.0.0.0:{remote.Port}";
+        loopbackOnly = false;
+        token ??= saved.Token;
+    }
+}
 if (!loopbackOnly && token == null)
 {
     token = Convert.ToHexString(RandomNumberGenerator.GetBytes(12)).ToLowerInvariant();
     Console.WriteLine($"Listening beyond loopback without TRACEME_TOKEN: generated access token {token}");
 }
+
+remote.Active = !loopbackOnly;
+remote.Token = token;
 
 // The UI lives in wwwroot next to the binaries; fall back to the working directory (dotnet run from the project folder).
 var contentRoot = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot")) ? AppContext.BaseDirectory : Directory.GetCurrentDirectory();
@@ -62,6 +79,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.MapApi(hub, token, life);
 app.MapAppApi(hub);
+app.MapRemoteApi(remote, life);
 
 hub.Targets.LoadAll();
 hub.Apps.Start();

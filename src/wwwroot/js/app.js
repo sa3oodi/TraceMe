@@ -68,7 +68,17 @@ $('#themeBtn').onclick = () => {
   document.dispatchEvent(new CustomEvent('tm-settings'));
 };
 
+// A QR code from Settings → Remote access opens  http://pc:5055/#t=TOKEN . The fragment is never sent to a server;
+// it is used once to sign in and then removed from the address bar and history.
+async function fragmentLogin() {
+  const m = /^#t=([^&]+)/.exec(location.hash);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  try { await post('/login', { token: decodeURIComponent(m[1]) }); } catch { /* the sign-in dialog asks instead */ }
+}
+
 async function boot() {
+  await fragmentLogin();
   try {
     store.system = await get('/system');
     clock.offset = store.system.time - Date.now();
